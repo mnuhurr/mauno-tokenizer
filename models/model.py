@@ -17,8 +17,8 @@ class ModelConfig:
     n_layers: int = 12
     n_heads: int = 8
     dropout: float = 0.2
-    #p_masking: float = 0.0
-    masking_length: int = 50
+    p_masking: float = 0.0
+    #masking_length: int = 50
     max_tokens: int = 1024
 
     n_tokens: int = 1024
@@ -59,24 +59,15 @@ class Model(torch.nn.Module):
             torch.nn.init.normal_(m.weight, std=0.01)
             torch.nn.init.constant_(m.bias, 0.0)
 
-    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, list[torch.Tensor], torch.Tensor | None]:
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, list[torch.Tensor]]:
         # todo: mask stuff
         # todo: specaugment?
         x = self.encoder(x)
-        if self.training:
-            seq_len = x.size(1)
-            max_offset = seq_len - self.config.masking_length
-            starts = torch.randint(max_offset, size=(x.size(0),), device=x.device)
-            masking_mask = torch.zeros(x.size(0), seq_len, device=x.device)
-
-            for k, s in enumerate(starts):
-                x[k, s:s + self.config.masking_length] = self.mask_token
-                masking_mask[k, s:s + self.config.masking_length] = 1
-        else:
-            masking_mask = None
+        if self.training and self.config.p_masking > 0:
+            mask_tokens(x, self.mask_token, p=self.config.p_masking)
 
         x = self.positional_encoding(x)
         z = self.backbone(x)
         x = self.ln(z[-1])
         x = self.head(x)
-        return x, z, masking_mask
+        return x, z

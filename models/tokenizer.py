@@ -56,7 +56,9 @@ class Tokenizer(torch.nn.Module):
             use_cosine_sim=True,
             threshold_ema_dead_code=2)
 
-        self.proj1 = torch.nn.Linear(config.codebook_dim, config.d_model)
+        self.proj1 = torch.nn.Sequential(
+            torch.nn.Linear(config.codebook_dim, config.d_model),
+            TransformerEncoder(d_model=config.d_model, n_layers=3, n_heads=config.n_heads, dropout=config.dropout))
 
         self.register_parameter('mask_token', torch.nn.Parameter(torch.randn(config.d_model) / math.sqrt(config.d_model)))
         self.commit_loss = None
@@ -68,7 +70,7 @@ class Tokenizer(torch.nn.Module):
             torch.nn.init.normal_(m.weight, std=0.01)
             torch.nn.init.constant_(m.bias, 0.0)
 
-    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor, project: bool = True) -> tuple[torch.Tensor, torch.Tensor]:
         # todo: mask stuff
         # todo: specaugment?
         x = self.encoder(x)
@@ -80,5 +82,6 @@ class Tokenizer(torch.nn.Module):
         x = torch.tanh(x)
         x = self.proj0(x)
         x, codes, self.commit_loss = self.quantizer(x)
-        x = self.proj1(x)
+        if project:
+            x = self.proj1(x)[-1]
         return codes, x

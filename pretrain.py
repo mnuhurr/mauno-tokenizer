@@ -9,7 +9,7 @@ from models import Tokenizer, TokenizerConfig
 from models import Model, ModelConfig
 from models.utils import model_size
 from trainer import Trainer
-from utils import data_sizes, train_val_idx
+from utils import data_sizes
 
 
 def parse_args():
@@ -52,8 +52,8 @@ def main():
     n_layers = cfg.get('n_layers', 6)
     n_heads = cfg.get('n_heads', 8)
     dropout = cfg.get('dropout', 0.1)
-    #p_model_masking = cfg.get('p_model_masking', 0.0)
-    masking_length = cfg.get('masking_length', 50)
+    p_model_masking = cfg.get('p_model_masking', 0.0)
+    #masking_length = cfg.get('masking_length', 50)
     p_tokenizer_masking = cfg.get('p_tokenizer_masking', 0.0)
     codebook_dim = cfg.get('codebook_dim', 64)
     codebook_size = cfg.get('codebook_size', 256)
@@ -62,8 +62,6 @@ def main():
 
     n_seq, n_mels = data_sizes(data_fn)
     logger.info(f'{n_seq=}, {n_mels=}')
-
-    #train_idx, val_idx = train_val_idx(n_seq, validation_size=validation_size, seed=303)
 
     ds_tok = MelTokenDataset(data_fn)
     ds_emb = MelEmbeddingDataset(data_fn)
@@ -89,8 +87,8 @@ def main():
         n_layers=n_layers,
         n_heads=n_heads,
         dropout=dropout,
-        masking_length=masking_length,
-        #p_masking=p_model_masking,
+        #masking_length=masking_length,
+        p_masking=p_model_masking,
         n_tokens=codebook_size)
 
     print(tok_cfg)

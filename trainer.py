@@ -81,7 +81,7 @@ class Trainer:
 
         # check token sequence length
         x, _, _ = next(iter(self.token_loader))
-        t, _ = self.tokenizer(x.to(self.device))
+        t, _ = self.tokenizer(x.to(self.device), project=False)
         seq_len = t.size(1)
 
         tokens = torch.zeros(len(self.token_loader.dataset), seq_len, dtype=torch.int64)
@@ -108,9 +108,10 @@ class Trainer:
         for x, _, idx in tqdm(self.token_loader):
             x = x.to(self.device)
 
-            _, z, _ = self.model(x)
+            _, z = self.model(x)
 
             if self.n_pool_mdl_layers is not None:
+                # d2v-style averaging of the teacher outputs
                 z = torch.stack(z[-self.n_pool_mdl_layers:])
                 z = F.normalize(z, p=2, dim=-1)
                 z = z.mean(dim=0)
@@ -135,9 +136,8 @@ class Trainer:
             y_true = y_true.to(self.device)
 
             with torch.amp.autocast(device_type=self.device.type):
-                y_pred, _, mask = self.model(x)
-                #loss = F.cross_entropy(y_pred.permute(0, 2, 1), y_true)
-                loss = masked_cross_entropy(y_pred.permute(0, 2, 1), y_true, mask)
+                y_pred, _ = self.model(x)
+                loss = F.cross_entropy(y_pred.permute(0, 2, 1), y_true)
 
             train_loss += loss.item()
             scaler.scale(loss / self.grad_acc_steps).backward()
